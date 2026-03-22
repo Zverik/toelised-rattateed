@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Tallinna rattateed</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@^5.21.0/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/pmtiles@4.1.0/dist/pmtiles.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.21.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; }
+        html, body, #map { height: 100%; }
+        #settings {
+          display: inline-block;
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          padding: 5px 10px;
+          background-color: white;
+          color: black;
+          z-index: 999;
+        }
+        .s-title {
+          font-weight: bold;
+          margin-right: 4px;
+        }
+        .s-button {
+          display: inline-block;
+          font-weight: normal;
+          padding: 2px 4px;
+          margin: 2px 2px;
+          background: #ddd;
+          cursor: pointer;
+        }
+        .s-button:hover {
+          background: white;
+        }
+        .s-button.chosen {
+          background: darkgreen;
+          color: white;
+        }
+        #legend {
+          margin-top: 1em;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="map">
+      <div id="settings"></div>
+    </div>
+    <script>
+      const map = new maplibregl.Map({
+        center: [24.73, 59.42],
+        zoom: 11.5,
+        minZoom: 10,
+        maxZoom: 16,
+
+        style: 'https://tiles.openfreemap.org/styles/positron',
+        container: 'map',
+        attributionControl: { compact: false },
+        hash: true,
+        dragRotate: false,
+        pitchWithRotate: false,
+      });
+
+      const blue = '#111f57';
+      var layers = {
+        'proper': [
+          {
+            "id": "basic",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 3,
+            "filter": ["all", ["==", "grade", "basic"]],
+            "paint": {"line-width": 2, "line-color": blue}
+          },
+          {
+            "id": "main",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": ["all", ["==", "grade", "main"]],
+            "paint": {"line-width": 2, "line-color": "rgba(141, 38, 138, 1)"}
+          },
+        ],
+
+        'all': [
+          {
+            "id": "all",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "filter": ["all"],
+            "minzoom": 8,
+            "paint": {
+              "line-width": 2,
+              "line-color": "rgba(141, 38, 138, 1)"
+            }
+          },
+          {
+            "id": "dedicated",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "any",
+              [
+                "==",
+                "track_type",
+                "dedicated"
+              ],
+              ["==", "lane_type", "lane"]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": blue
+            }
+          }
+        ],
+
+        'reasons': [
+        ],
+
+        'missing': [
+        ],
+
+        'official': [
+          {
+            "id": "lanes",
+            "type": "line",
+            "source": "ametlik",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": ["all", ["==", "rattatee_liik", 1]],
+            "paint": {
+              "line-color": blue,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7],
+              "line-dasharray": [2, 1]
+            }
+          },
+          {
+            "id": "tracks",
+            "type": "line",
+            "source": "ametlik",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": ["all", ["!=", "rattatee_liik", 1]],
+            "paint": {
+              "line-color": blue,
+              "line-width": ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7]
+            }
+          }
+        ],
+      };
+      var layerNames = {
+        'proper': 'korralikud',
+        'official': 'ametlik',
+        'all': 'kõik',
+        'missing': 'puudused',
+        'reasons': 'probleemid',
+      };
+      var layerLegends = {
+        'proper': [
+          { color: blue, text: 'basic' },
+          { color: 'purple', text: 'main' },
+        ],
+        'official': [
+          { color: blue, text: 'ratta- ja jalgtee' },
+          { color: blue, dashed: true, text: 'rattarada sõiduteel' },
+        ],
+      };
+
+      var currentLayer;
+      var firstSymbolId;
+
+      const protocol = new pmtiles.Protocol();
+      maplibregl.addProtocol('pmtiles', protocol.tile);
+
+      map.on('load', () => {
+        map.addSource('ametlik', {
+          type: 'vector',
+          url: 'pmtiles://https://osmz.ee/kiirus/ametlikud-rattateed.pmtiles',
+          // url: 'pmtiles://./ametlikud-rattateed.pmtiles',
+        });
+        map.addSource('toelised', {
+          type: 'vector',
+          url: 'pmtiles://https://osmz.ee/kiirus/toelised-rattateed.pmtiles',
+          // url: 'pmtiles://./toelised-rattateed.pmtiles',
+        });
+
+        const libLayers = map.getStyle().layers;
+        // Find the index of the first symbol layer in the map style
+        for (let i = 0; i < libLayers.length; i++) {
+            if (libLayers[i].type === 'symbol') {
+                firstSymbolId = libLayers[i].id;
+                break;
+            }
+        }
+
+        initPanel();
+        selectLayer('official');
+      });
+
+      map.addControl(new maplibregl.NavigationControl({
+        showCompass: false
+      }));
+
+      function selectLayer(name) {
+        if (currentLayer) {
+          // Remove the previously enabled layer.
+          for (const layer of layers[currentLayer]) {
+            map.removeLayer(layer.id);
+          }
+        }
+
+        // Add layers for the new layer.
+        for (const layer of layers[name]) {
+          map.addLayer(layer);
+        }
+
+        // Update the buttons state.
+        $('#settings .s-layer').each(function () {
+          const thisLayer = $(this).attr('layer');
+          if (name == thisLayer)
+            $(this).addClass('chosen');
+          else
+            $(this).removeClass('chosen');
+        });
+
+        drawLegend(name);
+        currentLayer = name;
+      }
+
+      function makeLayerButton(layer) {
+        const l = $('<span class="s-button s-layer">' + (layerNames[layer] || layer) + '</span>');
+        l.attr('layer', layer);
+        l.on('click', (e) => { selectLayer(layer); });
+        return l;
+      }
+
+      function initPanel() {
+        let settings = $('<div id="settings">');
+        settings.append('<span class="s-title">Layers:</span>');
+        settings.append(makeLayerButton('official'));
+        settings.append(makeLayerButton('all'));
+        settings.append(makeLayerButton('proper'));
+
+        settings.append('<br><span class="s-title">Profile:</span>');
+        settings.append(makeLayerButton('reasons'));
+        settings.append(makeLayerButton('missing'));
+
+        settings.append('<div id="legend"></div>');
+        $('#settings').replaceWith(settings);
+      }
+
+      function drawLegend(layer) {
+        let legend = $('<div id="legend">');
+        if (layerLegends[layer]) {
+          for (const row of layerLegends[layer]) {
+            let svgStyle = 'stroke:' + row.color + ';stroke-width:' + (row.width || 2) + ';stroke-linecap:round;stroke-linejoin:round;';
+            if (row.dashed) svgStyle = svgStyle + 'stroke-dasharray: 8,6;';
+            let svg = '<svg width="50" viewBox="0 0 50 10"><path style="' + svgStyle + '" d="M 5,5 H 40"/></svg>';
+            legend.append($('<div>' + svg + row.text + '</div>'));
+          }
+        }
+        $('#legend').replaceWith(legend);
+      }
+    </script>
+  </body>
+</html>

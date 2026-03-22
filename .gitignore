@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Other
+uv.lock
+*.jsonl
+*.pbf
+*.gpkg
+*.qmd
+*.qgz
+*.mbtiles
+*.pmtiles
+*.geojson
+.python-version
