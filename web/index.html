@@ -53,8 +53,8 @@
       const map = new maplibregl.Map({
         center: [24.73, 59.42],
         zoom: 11.5,
-        minZoom: 10,
-        maxZoom: 16,
+        minZoom: 11,
+        maxZoom: 17,
 
         style: 'https://tiles.openfreemap.org/styles/positron',
         container: 'map',
@@ -65,6 +65,8 @@
       });
 
       const blue = '#111f57';
+      const purple = '#8d268a';
+      const lineWidth = ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7];
       var layers = {
         'proper': [
           {
@@ -74,7 +76,10 @@
             "source-layer": "rattateed",
             "minzoom": 3,
             "filter": ["all", ["==", "grade", "basic"]],
-            "paint": {"line-width": 2, "line-color": blue}
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": blue
+            }
           },
           {
             "id": "main",
@@ -83,11 +88,29 @@
             "source-layer": "rattateed",
             "minzoom": 8,
             "filter": ["all", ["==", "grade", "main"]],
-            "paint": {"line-width": 2, "line-color": "rgba(141, 38, 138, 1)"}
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": purple
+            }
           },
         ],
 
         'all': [
+          {
+            "id": "age",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "paint": {
+              "line-color": "rgba(40, 165, 0, 1)",
+              "line-width": 10,
+              "line-opacity": 0.3
+            },
+            "filter": [
+              "all",
+              ["has", "age_days"]
+            ]
+          },
           {
             "id": "all",
             "type": "line",
@@ -96,8 +119,8 @@
             "filter": ["all"],
             "minzoom": 8,
             "paint": {
-              "line-width": 2,
-              "line-color": "rgba(141, 38, 138, 1)"
+              "line-width": lineWidth,
+              "line-color": purple
             }
           },
           {
@@ -108,21 +131,70 @@
             "minzoom": 8,
             "filter": [
               "any",
-              [
-                "==",
-                "track_type",
-                "dedicated"
-              ],
+              ["==", "track_type", "dedicated"],
               ["==", "lane_type", "lane"]
             ],
             "paint": {
-              "line-width": 2,
+              "line-width": lineWidth,
               "line-color": blue
             }
           }
         ],
 
         'reasons': [
+          {
+            "id": "other",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["has", "reason"]
+            ],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": "rgba(1, 1, 21, 1)"
+            }
+          },
+          {
+            "id": "width",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["==", "reason", "no width"]
+            ],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": "rgba(225, 33, 24, 1)"
+            }
+          },
+          {
+            "id": "reasons",
+            "type": "symbol",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 15,
+            "filter": [
+              "all",
+              ["has", "reason"]
+            ],
+            "layout": {
+              "symbol-placement": "line",
+              "text-field": ["get", "reason"],
+              "text-font": ["Roboto Regular"],
+              "text-allow-overlap": false,
+              "text-size": 14
+            },
+            "paint": {
+              "text-color": "rgba(51, 17, 17, 1)",
+              "text-halo-color": "rgba(255, 255, 255, 1)",
+              "text-halo-width": 3
+            }
+          }
         ],
 
         'missing': [
@@ -138,7 +210,7 @@
             "filter": ["all", ["==", "rattatee_liik", 1]],
             "paint": {
               "line-color": blue,
-              "line-width": ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7],
+              "line-width": lineWidth,
               "line-dasharray": [2, 1]
             }
           },
@@ -151,26 +223,35 @@
             "filter": ["all", ["!=", "rattatee_liik", 1]],
             "paint": {
               "line-color": blue,
-              "line-width": ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7]
+              "line-width": lineWidth,
             }
           }
         ],
       };
       var layerNames = {
         'proper': 'korralikud',
-        'official': 'ametlik',
-        'all': 'kõik',
+        'official': 'ametlikud',
+        'all': 'märgitud',
         'missing': 'puudused',
         'reasons': 'probleemid',
       };
       var layerLegends = {
         'proper': [
-          { color: blue, text: 'basic' },
-          { color: 'purple', text: 'main' },
+          { color: blue, text: 'kohalik tee' },
+          { color: purple, text: 'peatee' },
         ],
         'official': [
           { color: blue, text: 'ratta- ja jalgtee' },
           { color: blue, dashed: true, text: 'rattarada sõiduteel' },
+        ],
+        'all': [
+          { color: blue, text: 'rattatee või rattarada' },
+          { color: purple, text: 'ratta- ja jalgtee' },
+          { color: "rgba(40, 165, 0, 0.3)", width: 10, text: 'asjakontrollitud' },
+        ],
+        'reasons': [
+          { color: "rgba(225, 33, 24, 1)", text: 'pole laiust andmetes' },
+          { color: "rgba(1, 1, 21, 1)", text: 'teised põhjused' },
         ],
       };
 
@@ -244,12 +325,12 @@
 
       function initPanel() {
         let settings = $('<div id="settings">');
-        settings.append('<span class="s-title">Layers:</span>');
+        settings.append('<span class="s-title">Kihid:</span>');
         settings.append(makeLayerButton('official'));
         settings.append(makeLayerButton('all'));
         settings.append(makeLayerButton('proper'));
 
-        settings.append('<br><span class="s-title">Profile:</span>');
+        settings.append('<br><span class="s-title">Abi:</span>');
         settings.append(makeLayerButton('reasons'));
         settings.append(makeLayerButton('missing'));
 

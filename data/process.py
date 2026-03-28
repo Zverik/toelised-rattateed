@@ -15,7 +15,7 @@ class Grade(Enum):
     MAIN = 4
 
 
-def main_or_basic(tags: dict[str, str]) -> Grade | None:
+def main_or_basic(tags: dict[str, str]) -> Grade | str:
     separated = 'separation' in tags and tags['separation'] not in ('none', 'lowered_kerb')
     is_coloured = tags.get('colour') in ('red', 'blue')
     oneway = tags['oneway'] in ('yes', '-1')
@@ -25,7 +25,7 @@ def main_or_basic(tags: dict[str, str]) -> Grade | None:
     is_main = True
 
     if 'smoothness' in tags and tags['smoothness'] not in ('perfect', 'good'):
-        return None
+        return f'smoothness {tags["smoothness"]}'
 
     if tags['type'] == 'track':
         width = 2.0 if 'width' not in tags else float(tags['width'])
@@ -45,7 +45,7 @@ def main_or_basic(tags: dict[str, str]) -> Grade | None:
         if width < min_width_main:
             is_main = False
         if width < min_width_basic:
-            return None
+            return f'width<{min_width_basic}' if 'width' in tags else 'no width'
 
     elif tags['type'] == 'lane':
         # Note that is_transit means only MAIN is acceptable.
@@ -62,11 +62,11 @@ def main_or_basic(tags: dict[str, str]) -> Grade | None:
 
         if not oneway and not separated:
             # This is absurd.
-            return None
+            return 'not separated'
 
         if not separated and not is_coloured:
             # Oslo required red surface for all, but we relax it to just not separated.
-            return None
+            return 'not red'
 
         if high_traffic and not separated:
             # We'll allow for basic roads
@@ -74,7 +74,7 @@ def main_or_basic(tags: dict[str, str]) -> Grade | None:
 
         if speed > 30 and not separated:
             # Must be separated or high danger roads.
-            return None
+            return 'not separated'
 
         min_width_main = 2.0 if oneway else 3.0
         if not separated:
@@ -91,7 +91,7 @@ def main_or_basic(tags: dict[str, str]) -> Grade | None:
         if width < min_width_main:
             is_main = False
         if width < min_width_basic:
-            return None
+            return f'width<{min_width_basic}' if 'width' in tags else 'no width'
 
     else:
         raise Exception(f'Wrong type: {tags["type"]}')
@@ -100,22 +100,29 @@ def main_or_basic(tags: dict[str, str]) -> Grade | None:
     return Grade.MAIN if is_main else Grade.BASIC
 
 
-def calc_grade(tags: dict[str, str]) -> Grade:
+def set_grade(tags: dict[str, str]) -> None:
     if not tags:
-        return Grade.SKIP
+        return
+
+    grade: Grade | None = None
 
     # Main and Basic
     mb = main_or_basic(tags)
-    if mb:
-        return mb
+    if isinstance(mb, Grade):
+        grade = mb
+    else:
+        # Failed checks
+        tags['reason'] = mb
 
-    # Dedicated
-    if tags.get('track_type') == 'dedicated':
-        return Grade.DEDICATED
-    elif tags.get('lane_type') == 'lane':
-        return Grade.DEDICATED
+        # Dedicated
+        if tags.get('track_type') == 'dedicated':
+            grade = Grade.DEDICATED
+        elif tags.get('lane_type') == 'lane':
+            grade = Grade.DEDICATED
+        else:
+            grade = Grade.ANY
 
-    return Grade.ANY  # unwind_tags() filtered for that
+    tags['grade'] = grade.name.lower()
 
 
 def find_age(tags: dict[str, str]) -> str | None:
@@ -323,11 +330,9 @@ if __name__ == '__main__':
             side_tags = unwind_tags(tags, side)
             if not side_tags:
                 continue
-            grade = calc_grade(side_tags)
-            if grade == Grade.SKIP:
-                continue
+
             side_tags['way_id'] = tags['@id']
-            side_tags['grade'] = grade.name.lower()
+            set_grade(side_tags)
             check_date = find_age(tags)
             if check_date:
                 side_tags['age_days'] = check_date
