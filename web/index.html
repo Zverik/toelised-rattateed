@@ -66,6 +66,8 @@
 
       const blue = '#111f57';
       const purple = '#8d268a';
+      const red = "rgba(225, 33, 24, 1)";
+      const almostBlack = "rgba(1, 1, 21, 1)";
       const lineWidth = ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7];
       var layers = {
         'proper': [
@@ -104,7 +106,7 @@
             "paint": {
               "line-color": "rgba(40, 165, 0, 1)",
               "line-width": 10,
-              "line-opacity": 0.3
+              "line-opacity": 0.2
             },
             "filter": [
               "all",
@@ -116,7 +118,10 @@
             "type": "line",
             "source": "toelised",
             "source-layer": "rattateed",
-            "filter": ["all"],
+            "filter": [
+              "all",
+              ["has", "type"],
+            ],
             "minzoom": 8,
             "paint": {
               "line-width": lineWidth,
@@ -154,7 +159,7 @@
             ],
             "paint": {
               "line-width": lineWidth,
-              "line-color": "rgba(1, 1, 21, 1)"
+              "line-color": almostBlack
             }
           },
           {
@@ -169,7 +174,7 @@
             ],
             "paint": {
               "line-width": lineWidth,
-              "line-color": "rgba(225, 33, 24, 1)"
+              "line-color": red
             }
           },
           {
@@ -198,6 +203,127 @@
         ],
 
         'missing': [
+          // # SOLID
+          // R: width
+          // B: colour for lanes
+          // B: segregated for shared tracks
+          // B: maxspeed for lanes
+          //
+          // # DASHES
+          // smoothness for tracks
+          // colour for segr
+          // separation for segr/lanes
+
+          {
+            "id": "important",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "any",
+              [
+                "all",
+                [
+                  "!",
+                  [
+                    "any",
+                    ["has", "colour"],
+                    ["has", "maxspeed"]
+                  ]
+                ],
+                [
+                  "==",
+                  ["get", "lane_type"],
+                  "lane"
+                ]
+              ],
+              [
+                "all",
+                [
+                  "==",
+                  ["get", "track_type"],
+                  "shared"
+                ],
+                [
+                  "in",
+                  "seg",
+                  ["get", "missing"]
+                ]
+              ],
+              [
+                "all",
+                [
+                  "==",
+                  ["get", "type"],
+                  "lane"
+                ],
+                ["!", ["has", "maxspeed"]]
+              ]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": almostBlack
+            }
+          },
+          {
+            "id": "other",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["has", "missing"]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": almostBlack,
+              "line-dasharray": [2, 2]
+            }
+          },
+          {
+            "id": "width",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["!has", "width"],
+              ["has", "missing"]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": red
+            }
+          },
+          {
+            "id": "missing",
+            "type": "symbol",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 15,
+            "filter": [
+              "all",
+              ["has", "missing"]
+            ],
+            "layout": {
+              "symbol-placement": "line",
+              "text-field": [
+                "get",
+                "missing"
+              ],
+              "text-font": ["Roboto Regular"],
+              "text-allow-overlap": false,
+              "text-size": 14
+            },
+            "paint": {
+              "text-color": "rgba(51, 17, 17, 1)",
+              "text-halo-color": "rgba(255, 255, 255, 1)",
+              "text-halo-width": 3
+            }
+          }
         ],
 
         'official': [
@@ -250,8 +376,13 @@
           { color: "rgba(40, 165, 0, 0.3)", width: 10, text: 'asjakontrollitud' },
         ],
         'reasons': [
-          { color: "rgba(225, 33, 24, 1)", text: 'pole laiust andmetes' },
-          { color: "rgba(1, 1, 21, 1)", text: 'teised põhjused' },
+          { color: red, text: 'pole laiust andmetes' },
+          { color: almostBlack, text: 'teised põhjused' },
+        ],
+        'missing': [
+          { color: red, text: 'lauist puudub' },
+          { color: almostBlack, text: 'olulised atribuudid puuduvad' },
+          { color: almostBlack, dashed: true, text: 'teised puudused' },
         ],
       };
 

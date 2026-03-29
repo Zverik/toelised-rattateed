@@ -24,8 +24,9 @@ def main_or_basic(tags: dict[str, str]) -> Grade | str:
 
     is_main = True
 
-    if 'smoothness' in tags and tags['smoothness'] not in ('perfect', 'good'):
-        return f'smoothness {tags["smoothness"]}'
+    sm = tags.get('smoothness') or tags.get('s_smoothness')
+    if sm and sm not in ('perfect', 'good'):
+        return f'smoothness {sm}'
 
     if tags['type'] == 'track':
         width = 2.0 if 'width' not in tags else float(tags['width'])
@@ -48,6 +49,10 @@ def main_or_basic(tags: dict[str, str]) -> Grade | str:
             return f'width<{min_width_basic}' if 'width' in tags else 'no width'
 
     elif tags['type'] == 'lane':
+        if tags['lane_type'] != 'lane':
+            # Shared lanes are haram. Maybe ok with 20 km/h but not now.
+            return tags['lane_type']
+
         # Note that is_transit means only MAIN is acceptable.
         width = 1.0 if 'width' not in tags else float(tags['width'])
         is_transit = tags['highway'] in (
@@ -219,14 +224,13 @@ def unwind_tags(tags: dict[str, str], side: str | None) -> dict[str, str]:
     if not re.match(r'^\d+%$', result['incline'] or ''):
         del result['incline']
 
-    expected_smoothness = TOP_SURFACE_SMOOTHNESS.get(tags.get('surface', ''))
+    expected_smoothness = TOP_SURFACE_SMOOTHNESS.get(result.get('surface'))
     result['smoothness'] = (
         side_tag(tags, side, 'smoothness:ecs')
         or tags.get('cycleway:smoothness:ecs') or tags.get('smoothness:ecs')
         or SMOOTHNESS_TO_ECS.get(side_tag(tags, side, 'smoothness'))
         or SMOOTHNESS_TO_ECS.get(tags.get('cycleway:smoothness'))
-        or SMOOTHNESS_TO_ECS.get(tags.get('smoothness'))
-        or expected_smoothness)
+        or SMOOTHNESS_TO_ECS.get(tags.get('smoothness')))
     if result['smoothness'] not in SMOOTHNESS_VALUES:
         del result['smoothness']
 
@@ -234,6 +238,10 @@ def unwind_tags(tags: dict[str, str], side: str | None) -> dict[str, str]:
     if expected_smoothness and 'smoothness' in result:
         if SMOOTHNESS_VALUES[expected_smoothness] > SMOOTHNESS_VALUES[result['smoothness']]:
             result['smoothness'] = expected_smoothness
+
+    # Write backup smoothness from surface.
+    if expected_smoothness and 'smoothness' not in result:
+        result['s_smoothness'] = expected_smoothness
 
     if tags['highway'] in ('cycleway', 'footway', 'path'):
         # Dedicated track or shared footway
@@ -306,6 +314,25 @@ def unwind_tags(tags: dict[str, str], side: str | None) -> dict[str, str]:
     return clear_none(result)
 
 
+def list_missing(tags: dict[str, str], orig_tags: dict[str, str]) -> str | None:
+    if 'type' not in tags:
+        return None
+    result = set[str]()
+    if 'width' not in tags:
+        result.add('w')
+    if tags['type'] == 'lane' and 'maxspeed' not in tags:
+        result.add('sp')
+    if tags.get('lane_type') == 'lane' and 'colour' not in tags:
+        result.add('c')
+    if 'smoothness' not in tags and 's_smoothness' not in tags:
+        result.add('sm')
+    if tags.get('track_type') == 'shared' and 'segregated' not in orig_tags:
+        result.add('seg')
+    if ('segregated' in tags or tags['type'] == 'lane') and 'separation' not in tags:
+        result.add('sep')
+    return None if not result else ','.join(sorted(result))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description='Replaces tags on linestrings with cycleway-specific.')
@@ -328,14 +355,20 @@ if __name__ == '__main__':
 
         for side in (None, 'left', 'right'):
             side_tags = unwind_tags(tags, side)
+            check_date = find_age(tags)
+            if check_date:
+                # This nullifies the empty side_tags check.
+                side_tags['age_days'] = check_date
+
             if not side_tags:
                 continue
 
             side_tags['way_id'] = tags['@id']
-            set_grade(side_tags)
-            check_date = find_age(tags)
-            if check_date:
-                side_tags['age_days'] = check_date
+            if 'type' in side_tags:
+                set_grade(side_tags)
+            missing = list_missing(side_tags, tags)
+            if missing:
+                side_tags['missing'] = missing
             if 'length' in tags:
                 side_tags['length'] = tags['length']
 
