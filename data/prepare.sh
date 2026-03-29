@@ -5,7 +5,7 @@ BBOX=24.5185,59.322118,25.014945,59.533062
 TMP=/tmp
 HERE=$(dirname "$0")
 FORMAT=pmtiles
-TIPPECANOE=${TIPPECANOE:-../../tippecanoe/tippecanoe}
+TIPPECANOE=${TIPPECANOE:-tippecanoe}
 OSMIUM=${OSMIUM:-osmium}
 UV=${UV:-uv}
 
