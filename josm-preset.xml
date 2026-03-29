@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<presets xmlns="http://josm.openstreetmap.de/tagging-preset-1.0"
+        author="Ilja Zverev"
+        version="1.[[revision]]_[[date]]"
+        shortdescription="Tõelised rattateed"
+        en.shortdescription="Proper cycling routes"
+        description="Set of tags for bicycle lanes and tracks for the mapping project"
+        link="https://wiki.openstreetmap.org/wiki/Tallinna_Rattateed#Crossings"
+        lang="en">
+
+<group name="Tõelised rattateed" icon="presets/transport/way/dedicated_cycleway.svg">
+  <item name="Non-signed Shared" type="way">
+    <label text="Implicitly shared bike+foot path with no bicycle signs"/>
+    <text key="check_date" text="Check date" use_last_as_default="force"/>
+    <combo key="highway" text="Highway type" values="cycleway,path" values_sort="false"/>
+    <key key="bicycle" value="yes"/>
+    <key key="foot" value="designated"/>
+    <key key="segregated" value="no"/>
+    <text key="width" text="Full width (meters)"/>
+    <text key="cycleway:width" text="Min cyclable width (meters)"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+  </item>
+
+  <item name="Shared" type="way">
+    <label text="Shared bike+foot path, no separation"/>
+    <text key="check_date" text="Check date" use_last_as_default="force"/>
+    <combo key="highway" text="Highway type" values="footway,cycleway,path" values_sort="false"/>
+    <key key="bicycle" value="designated"/>
+    <key key="foot" value="designated"/>
+    <key key="segregated" value="no"/>
+    <text key="width" text="Full width (meters)"/>
+    <text key="cycleway:width" text="Min cyclable width (meters)"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+  </item>
+
+  <item name="Segregated" type="way">
+    <label text="Segregated bike+foot path"/>
+    <text key="check_date" text="Check date" use_last_as_default="force"/>
+    <combo key="highway" text="Highway type" values="footway,cycleway,path" values_sort="false"/>
+    <key key="bicycle" value="designated"/>
+    <key key="foot" value="designated"/>
+    <key key="segregated" value="yes"/>
+    <combo key="cycleway:separation" text="Separation" values="no,lowered_kerb,kerb" values_sort="false"/>
+    <text key="width" text="Full width (meters)"/>
+    <text key="cycleway:width" text="Min cyclable width (meters)"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:surface" text="Cycleway surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="footway:surface" text="Footway surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:surface:colour" text="Cycleway colour" values="none,red,blue" values_sort="false"/>
+    <combo key="cycleway:smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+    <check key="oneway:bicycle" text="Oneway for bicycle"/>
+  </item>
+
+  <item name="Dedicated" type="way">
+    <label text="Dedicated cycleway"/>
+    <text key="check_date" text="Check date" use_last_as_default="force"/>
+    <key key="highway" value="cycleway"/>
+    <key key="bicycle" value="designated"/>
+    <combo key="foot" text="Foot access" values="no,discouraged" default="no"/>
+    <text key="width" text="Full width (meters)"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false" default="asphalt"/>
+    <combo key="smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+    <combo key="surface:colour" text="Surface colour" values="none,red,blue" values_sort="false"/>
+    <check key="oneway:bicycle" text="Oneway for bicycle"/>
+  </item>
+
+  <separator/>
+
+  <item name="Lane Right" type="way">
+    <label text="Lane to the right"/>
+    <text key="cycleway:check_date" text="Check date" use_last_as_default="force"/>
+    <combo key="cycleway:right" text="Lane type" values="lane,shared_lane,busway_shared" values_sort="false" editable="false" default="lane"/>
+    <combo key="cycleway:right:separation" text="Separation" values="no,lowered_kerb,kerb" values_sort="false"/>
+    <text key="cycleway:right:width" text="Min cyclable width (meters)"/>
+    <combo key="cycleway:right:surface:colour" text="Surface colour" values="none,red,blue" values_sort="false"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:right:surface" text="Cycleway surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+    <check key="oneway:bicycle" text="Oneway for bicycle" default="yes"/>
+  </item>
+
+  <item name="Lane Left" type="way">
+    <label text="Lane to the left"/>
+    <text key="cycleway:check_date" text="Check date" use_last_as_default="force"/>
+    <combo key="cycleway:left" text="Lane type" values="lane,shared_lane,busway_shared" values_sort="false" editable="false" default="lane"/>
+    <combo key="cycleway:left:separation" text="Separation" values="no,lowered_kerb,kerb" values_sort="false"/>
+    <text key="cycleway:left:width" text="Min cyclable width (meters)"/>
+    <combo key="cycleway:left:surface:colour" text="Surface colour" values="none,red,blue" values_sort="false"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:left:surface" text="Cycleway surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+    <check key="oneway:bicycle" text="Oneway for bicycle" default="yes"/>
+  </item>
+
+  <item name="Lane Both" type="way">
+    <label text="Cycle lanes on both sides (try not using)"/>
+    <text key="cycleway:check_date" text="Check date" use_last_as_default="force"/>
+    <combo key="cycleway:both" text="Lane type" values="lane,shared_lane,busway_shared" values_sort="false" editable="false" default="lane"/>
+    <combo key="cycleway:both:separation" text="Separation" values="no,lowered_kerb,kerb" values_sort="false"/>
+    <text key="cycleway:both:width" text="Min cyclable width (meters)"/>
+    <combo key="cycleway:both:surface:colour" text="Surface colour" values="none,red,blue" values_sort="false"/>
+    <combo key="surface" text="Surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:both:surface" text="Cycleway surface" values="asphalt,paving_stones,metal_grid,wood,fine_gravel,woodchips,compacted" values_sort="false"/>
+    <combo key="cycleway:smoothness:ecs" text="ECS smoothness" values="perfect,good,moderate,bad" values_sort="false"/>
+    <check key="oneway:bicycle" text="Oneway for bicycle" default="yes"/>
+  </item>
+</group>
+
+</presets>
