@@ -395,13 +395,11 @@
       map.on('load', () => {
         map.addSource('ametlik', {
           type: 'vector',
-          url: 'pmtiles://https://osmz.ee/kiirus/ametlikud-rattateed.pmtiles',
-          // url: 'pmtiles://./ametlikud-rattateed.pmtiles',
+          url: 'pmtiles://./ametlikud-rattateed.pmtiles',
         });
         map.addSource('toelised', {
           type: 'vector',
-          url: 'pmtiles://https://osmz.ee/kiirus/toelised-rattateed.pmtiles',
-          // url: 'pmtiles://./toelised-rattateed.pmtiles',
+          url: 'pmtiles://./toelised-rattateed.pmtiles',
         });
 
         const libLayers = map.getStyle().layers;
