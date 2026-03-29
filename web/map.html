@@ -328,6 +328,21 @@
 
         'official': [
           {
+            "id": "age",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "paint": {
+              "line-color": "rgba(40, 165, 0, 1)",
+              "line-width": 10,
+              "line-opacity": 0.1
+            },
+            "filter": [
+              "all",
+              ["has", "age_days"]
+            ]
+          },
+          {
             "id": "lanes",
             "type": "line",
             "source": "ametlik",
