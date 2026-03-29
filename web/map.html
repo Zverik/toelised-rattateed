@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Tallinna rattateed</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@^5.21.0/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/pmtiles@4.1.0/dist/pmtiles.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.21.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; }
+        html, body, #map { height: 100%; }
+        #settings {
+          display: inline-block;
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          padding: 5px 10px;
+          background-color: white;
+          color: black;
+          z-index: 999;
+        }
+        .s-title {
+          font-weight: bold;
+          margin-right: 4px;
+        }
+        .s-button {
+          display: inline-block;
+          font-weight: normal;
+          padding: 2px 4px;
+          margin: 2px 2px;
+          background: #ddd;
+          cursor: pointer;
+        }
+        .s-button:hover {
+          background: white;
+        }
+        .s-button.chosen {
+          background: darkgreen;
+          color: white;
+        }
+        #legend {
+          margin-top: 1em;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="map">
+      <div id="settings"></div>
+    </div>
+    <script>
+      const map = new maplibregl.Map({
+        center: [24.73, 59.42],
+        zoom: 11.5,
+        minZoom: 11,
+        maxZoom: 17,
+
+        style: 'https://tiles.openfreemap.org/styles/positron',
+        container: 'map',
+        attributionControl: { compact: false },
+        hash: true,
+        dragRotate: false,
+        pitchWithRotate: false,
+      });
+
+      const blue = '#111f57';
+      const purple = '#8d268a';
+      const red = "rgba(225, 33, 24, 1)";
+      const almostBlack = "rgba(1, 1, 21, 1)";
+      const lineWidth = ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7];
+      var layers = {
+        'proper': [
+          {
+            "id": "basic",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 3,
+            "filter": ["all", ["==", "grade", "basic"]],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": blue
+            }
+          },
+          {
+            "id": "main",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": ["all", ["==", "grade", "main"]],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": purple
+            }
+          },
+        ],
+
+        'all': [
+          {
+            "id": "age",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "paint": {
+              "line-color": "rgba(40, 165, 0, 1)",
+              "line-width": 10,
+              "line-opacity": 0.2
+            },
+            "filter": [
+              "all",
+              ["has", "age_days"]
+            ]
+          },
+          {
+            "id": "all",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "filter": [
+              "all",
+              ["has", "type"],
+            ],
+            "minzoom": 8,
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": purple
+            }
+          },
+          {
+            "id": "dedicated",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "any",
+              ["==", "track_type", "dedicated"],
+              ["==", "lane_type", "lane"]
+            ],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": blue
+            }
+          }
+        ],
+
+        'reasons': [
+          {
+            "id": "other",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["has", "reason"]
+            ],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": almostBlack
+            }
+          },
+          {
+            "id": "width",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["==", "reason", "no width"]
+            ],
+            "paint": {
+              "line-width": lineWidth,
+              "line-color": red
+            }
+          },
+          {
+            "id": "reasons",
+            "type": "symbol",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 15,
+            "filter": [
+              "all",
+              ["has", "reason"]
+            ],
+            "layout": {
+              "symbol-placement": "line",
+              "text-field": ["get", "reason"],
+              "text-font": ["Roboto Regular"],
+              "text-allow-overlap": false,
+              "text-size": 14
+            },
+            "paint": {
+              "text-color": "rgba(51, 17, 17, 1)",
+              "text-halo-color": "rgba(255, 255, 255, 1)",
+              "text-halo-width": 3
+            }
+          }
+        ],
+
+        'missing': [
+          // # SOLID
+          // R: width
+          // B: colour for lanes
+          // B: segregated for shared tracks
+          // B: maxspeed for lanes
+          //
+          // # DASHES
+          // smoothness for tracks
+          // colour for segr
+          // separation for segr/lanes
+
+          {
+            "id": "important",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "any",
+              [
+                "all",
+                [
+                  "!",
+                  [
+                    "any",
+                    ["has", "colour"],
+                    ["has", "maxspeed"]
+                  ]
+                ],
+                [
+                  "==",
+                  ["get", "lane_type"],
+                  "lane"
+                ]
+              ],
+              [
+                "all",
+                [
+                  "==",
+                  ["get", "track_type"],
+                  "shared"
+                ],
+                [
+                  "in",
+                  "seg",
+                  ["get", "missing"]
+                ]
+              ],
+              [
+                "all",
+                [
+                  "==",
+                  ["get", "type"],
+                  "lane"
+                ],
+                ["!", ["has", "maxspeed"]]
+              ]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": almostBlack
+            }
+          },
+          {
+            "id": "other",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["has", "missing"]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": almostBlack,
+              "line-dasharray": [2, 2]
+            }
+          },
+          {
+            "id": "width",
+            "type": "line",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": [
+              "all",
+              ["!has", "width"],
+              ["has", "missing"]
+            ],
+            "paint": {
+              "line-width": 2,
+              "line-color": red
+            }
+          },
+          {
+            "id": "missing",
+            "type": "symbol",
+            "source": "toelised",
+            "source-layer": "rattateed",
+            "minzoom": 15,
+            "filter": [
+              "all",
+              ["has", "missing"]
+            ],
+            "layout": {
+              "symbol-placement": "line",
+              "text-field": [
+                "get",
+                "missing"
+              ],
+              "text-font": ["Roboto Regular"],
+              "text-allow-overlap": false,
+              "text-size": 14
+            },
+            "paint": {
+              "text-color": "rgba(51, 17, 17, 1)",
+              "text-halo-color": "rgba(255, 255, 255, 1)",
+              "text-halo-width": 3
+            }
+          }
+        ],
+
+        'official': [
+          {
+            "id": "lanes",
+            "type": "line",
+            "source": "ametlik",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": ["all", ["==", "rattatee_liik", 1]],
+            "paint": {
+              "line-color": blue,
+              "line-width": lineWidth,
+              "line-dasharray": [2, 1]
+            }
+          },
+          {
+            "id": "tracks",
+            "type": "line",
+            "source": "ametlik",
+            "source-layer": "rattateed",
+            "minzoom": 8,
+            "filter": ["all", ["!=", "rattatee_liik", 1]],
+            "paint": {
+              "line-color": blue,
+              "line-width": lineWidth,
+            }
+          }
+        ],
+      };
+      var layerNames = {
+        'proper': 'korralikud',
+        'official': 'ametlikud',
+        'all': 'märgitud',
+        'missing': 'puudused',
+        'reasons': 'probleemid',
+      };
+      var layerLegends = {
+        'proper': [
+          { color: blue, text: 'kohalik tee' },
+          { color: purple, text: 'peatee' },
+        ],
+        'official': [
+          { color: blue, text: 'ratta- ja jalgtee' },
+          { color: blue, dashed: true, text: 'rattarada sõiduteel' },
+        ],
+        'all': [
+          { color: blue, text: 'rattatee või rattarada' },
+          { color: purple, text: 'ratta- ja jalgtee' },
+          { color: "rgba(40, 165, 0, 0.3)", width: 10, text: 'asjakontrollitud' },
+        ],
+        'reasons': [
+          { color: red, text: 'pole laiust andmetes' },
+          { color: almostBlack, text: 'teised põhjused' },
+        ],
+        'missing': [
+          { color: red, text: 'lauist puudub' },
+          { color: almostBlack, text: 'olulised atribuudid puuduvad' },
+          { color: almostBlack, dashed: true, text: 'teised puudused' },
+        ],
+      };
+
+      var currentLayer;
+      var firstSymbolId;
+
+      const protocol = new pmtiles.Protocol();
+      maplibregl.addProtocol('pmtiles', protocol.tile);
+
+      map.on('load', () => {
+        map.addSource('ametlik', {
+          type: 'vector',
+          url: 'pmtiles://https://osmz.ee/kiirus/ametlikud-rattateed.pmtiles',
+          // url: 'pmtiles://./ametlikud-rattateed.pmtiles',
+        });
+        map.addSource('toelised', {
+          type: 'vector',
+          url: 'pmtiles://https://osmz.ee/kiirus/toelised-rattateed.pmtiles',
+          // url: 'pmtiles://./toelised-rattateed.pmtiles',
+        });
+
+        const libLayers = map.getStyle().layers;
+        // Find the index of the first symbol layer in the map style
+        for (let i = 0; i < libLayers.length; i++) {
+            if (libLayers[i].type === 'symbol') {
+                firstSymbolId = libLayers[i].id;
+                break;
+            }
+        }
+
+        initPanel();
+        selectLayer('official');
+      });
+
+      map.addControl(new maplibregl.NavigationControl({
+        showCompass: false
+      }));
+
+      function selectLayer(name) {
+        if (currentLayer) {
+          // Remove the previously enabled layer.
+          for (const layer of layers[currentLayer]) {
+            map.removeLayer(layer.id);
+          }
+        }
+
+        // Add layers for the new layer.
+        for (const layer of layers[name]) {
+          map.addLayer(layer);
+        }
+
+        // Update the buttons state.
+        $('#settings .s-layer').each(function () {
+          const thisLayer = $(this).attr('layer');
+          if (name == thisLayer)
+            $(this).addClass('chosen');
+          else
+            $(this).removeClass('chosen');
+        });
+
+        drawLegend(name);
+        currentLayer = name;
+      }
+
+      function makeLayerButton(layer) {
+        const l = $('<span class="s-button s-layer">' + (layerNames[layer] || layer) + '</span>');
+        l.attr('layer', layer);
+        l.on('click', (e) => { selectLayer(layer); });
+        return l;
+      }
+
+      function initPanel() {
+        let settings = $('<div id="settings">');
+        settings.append('<span class="s-title">Kihid:</span>');
+        settings.append(makeLayerButton('official'));
+        settings.append(makeLayerButton('all'));
+        settings.append(makeLayerButton('proper'));
+
+        settings.append('<br><span class="s-title">Abi:</span>');
+        settings.append(makeLayerButton('reasons'));
+        settings.append(makeLayerButton('missing'));
+
+        settings.append('<div id="legend"></div>');
+        $('#settings').replaceWith(settings);
+      }
+
+      function drawLegend(layer) {
+        let legend = $('<div id="legend">');
+        if (layerLegends[layer]) {
+          for (const row of layerLegends[layer]) {
+            let svgStyle = 'stroke:' + row.color + ';stroke-width:' + (row.width || 2) + ';stroke-linecap:round;stroke-linejoin:round;';
+            if (row.dashed) svgStyle = svgStyle + 'stroke-dasharray: 8,6;';
+            let svg = '<svg width="50" viewBox="0 0 50 10"><path style="' + svgStyle + '" d="M 5,5 H 40"/></svg>';
+            legend.append($('<div>' + svg + row.text + '</div>'));
+          }
+        }
+        $('#legend').replaceWith(legend);
+      }
+    </script>
+  </body>
+</html>
