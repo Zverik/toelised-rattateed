@@ -20,4 +20,12 @@ def length(points: list[list[float]]) -> float:
 
 
 def flen(feature: dict) -> float:
+    geom_type = feature['geometry']['type']
+    if geom_type == 'MultiLineString':
+        result = 0.0
+        for s in feature['geometry']['coordinates']:
+            result += length(s)
+        return result
+    if geom_type != 'LineString':
+        raise Exception(f'Feature type is {geom_type}')
     return length(feature['geometry']['coordinates'])
