@@ -11,10 +11,11 @@ def total_length(features: list[dict]) -> int:
 
 def describe(f: dict) -> str:
     p = f['properties']
+    ch = '' if 'checked' not in p else 'checked/'
     typ = p['type']
     sub = p.get('track_type') or p.get('lane_type')
     w = '' if 'width' not in p else '+width'
-    return f'{typ}/{sub}{w}'
+    return f'{ch}{typ}/{sub}{w}'
 
 
 def classify_tags(f: dict) -> str:
@@ -23,7 +24,7 @@ def classify_tags(f: dict) -> str:
     for k in ('type', 'track_type', 'lane_type'):
         if cur.get(k, '') != prev.get(k, ''):
             return f'{k}:{prev[k]}→{cur[k]}'
-    for k in ('width', 'surface', 'smoothness'):
+    for k in ('width', 'surface', 'smoothness', 'checked'):
         if k in cur and k not in prev:
             return f'+{k}'
         if k in prev and k not in cur:
@@ -42,19 +43,29 @@ def sort_by_desc(features: list[dict],
     return [(k, sorts[k]) for k in sorted(sorts.keys())]
 
 
+def len_value(f: dict) -> str:
+    return f'{flen(f)} m'
+
+
+def len_diff(f: dict) -> str:
+    old_len = round(f['properties']['old_length'])
+    new_len = round(f['properties']['new_length'])
+    return f'{old_len} → {new_len}'
+
+
 def way_url(f: dict, extra: str) -> str:
     way_id = f['properties']['way_id']
     url = f'https://www.openstreetmap.org/way/{way_id}'
     return f'    <li><a href="{url}">way {way_id}</a> {extra}</li>'
 
 
-def print_urls(out, features: list[dict], max_urls: int):
+def print_urls(out, features: list[dict], max_urls: int, extra=len_value):
     if not features:
         return
     print('    <ul>', file=out)
     fs = sorted(features, key=lambda f: flen(f), reverse=True)
     for f in fs[:max_urls]:
-        print(way_url(f, f'{flen(f)} m'), file=out)
+        print(way_url(f, extra(f)), file=out)
     if len(fs) > max_urls:
         print('    <li>...</li>', file=out)
     print('    </ul>', file=out)
@@ -100,12 +111,12 @@ def print_report(result: dict[str, list[dict]], filename: str,
     geom = result['length']
     print(file=out)
     print(f'<h1>Significant length change on {len(geom)}</h1>', file=out)
-    if len(geom) <= max_urls:
-        print('    <ul>', file=out)
-        for f in geom:
-            old_len = round(f['properties']['old_length'])
-            new_len = round(f['properties']['new_length'])
-            print(way_url(f, f'{old_len} → {new_len}'), file=out)
-        print('    </ul>', file=out)
+    print('  <ul>', file=out)
+    for typ, fs in sort_by_desc(
+            geom, lambda f:
+            'checked' if 'checked' in f['properties'] else 'other'):
+        print(f'  <li><b>{typ}</b>: {len(fs)}</li>', file=out)
+        print_urls(out, fs, max_urls, len_diff)
+    print('  </ul>', file=out)
 
     print('</body></html>', file=out)

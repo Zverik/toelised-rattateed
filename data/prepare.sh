@@ -40,5 +40,5 @@ rm $TMP/cycleways.jsonl
 rm -f $TMP/cycleways2.jsonl
 rm tr-old.jsonl
 
-rm -f ../web/toelised-rattateed.$FORMAT
-$TIPPECANOE -z 13 -o ../web/toelised-rattateed.$FORMAT -l rattateed --generate-ids $JSONL
+rm -f toelised-rattateed.$FORMAT
+$TIPPECANOE -z 13 -o toelised-rattateed.$FORMAT -l rattateed --generate-ids $JSONL
