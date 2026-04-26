@@ -356,7 +356,7 @@ if __name__ == '__main__':
         for side in (None, 'left', 'right'):
             side_tags = unwind_tags(tags, side)
             check_date = find_age(tags)
-            if check_date:
+            if check_date and (side_tags or not side):
                 # This nullifies the empty side_tags check.
                 side_tags['age_days'] = check_date
 

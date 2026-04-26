@@ -20,3 +20,4 @@ uv.lock
 *.pmtiles
 *.geojson
 .python-version
+web/diffs/
