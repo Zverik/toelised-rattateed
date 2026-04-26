@@ -321,15 +321,15 @@ def list_missing(tags: dict[str, str], orig_tags: dict[str, str]) -> str | None:
     if 'width' not in tags:
         result.add('w')
     if tags['type'] == 'lane' and 'maxspeed' not in tags:
-        result.add('sp')
+        result.add('speed')
     if tags.get('lane_type') == 'lane' and 'colour' not in tags:
-        result.add('c')
+        result.add('color')
     if 'smoothness' not in tags and 's_smoothness' not in tags:
-        result.add('sm')
+        result.add('smzns')
     if tags.get('track_type') == 'shared' and 'segregated' not in orig_tags:
-        result.add('seg')
+        result.add('segrg')
     if ('segregated' in tags or tags['type'] == 'lane') and 'separation' not in tags:
-        result.add('sep')
+        result.add('sepr')
     return None if not result else ','.join(sorted(result))
 
 

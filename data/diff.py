@@ -20,7 +20,7 @@ def iterate_jsonl(filename: str) -> Generator[tuple[str, dict]]:
             if 'type' not in feature['properties']:
                 # Skip non-cycling segments with just an age.
                 continue
-            for k in ('age_days', 'grade', 'reason'):
+            for k in ('age_days', 'grade', 'reason', 'missing', 'length'):
                 # We're not comparing on calculated tags.
                 if k in feature['properties']:
                     del feature['properties'][k]
