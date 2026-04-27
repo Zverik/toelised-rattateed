@@ -7,7 +7,7 @@ from typing import Generator
 from reporter import print_report
 
 
-def iterate_jsonl(filename: str) -> Generator[tuple[str, dict]]:
+def iterate_jsonl(filename: str) -> Generator[tuple[str, dict], None, None]:
     with open(filename, 'r') as f:
         for ln, line in enumerate(f, 1):
             if not line.strip().startswith('{'):
@@ -73,7 +73,8 @@ if __name__ == '__main__':
             old_len = flen(old_feature)
             new_len = flen(feature)
             perc = 100 * new_len / old_len
-            if max([old_len, new_len]) > 50 and abs(100 - perc) > options.length:
+            if (max([old_len, new_len]) > 50 and
+                    abs(100 - perc) > options.length):
                 f = feature.copy()
                 f['properties']['old_length'] = old_len
                 f['properties']['new_length'] = new_len
