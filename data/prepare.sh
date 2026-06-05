@@ -35,7 +35,7 @@ else
   python3 process.py $TMP/cycleways.jsonl -o $JSONL
   python3 diff.py tr-old.jsonl $JSONL -o $DIFF_BASE.json -r $DIFF_BASE.html
 fi
-echo "$(date +%Y-%m-%d) $DIFF.json" >> ../web/diffs/index.txt
+python3 index_diffs.py -p ../web/diffs -o ../web/diffs/index.json
 rm $TMP/cycleways.jsonl
 rm -f $TMP/cycleways2.jsonl
 rm tr-old.jsonl

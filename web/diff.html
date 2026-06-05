@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Tallinna rattateede muutused</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"></script>
+    <script src="https://unpkg.com/maplibre-gl@^5.21.0/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@^5.21.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        body { margin: 0; padding: 0; }
+        html, body, #map { height: 100%; }
+        #settings {
+          display: inline-block;
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          padding: 5px 10px;
+          background-color: white;
+          color: black;
+          z-index: 999;
+        }
+        .s-title {
+          font-weight: bold;
+          margin-right: 4px;
+        }
+        .s-button {
+          display: inline-block;
+          font-weight: normal;
+          padding: 2px 4px;
+          margin: 2px 2px;
+          background: #ddd;
+          cursor: pointer;
+        }
+        .s-button:hover {
+          background: white;
+        }
+        .s-button.chosen {
+          background: darkgreen;
+          color: white;
+        }
+        #legend {
+          margin-top: 1em;
+        }
+    </style>
+  </head>
+  <body>
+    <div id="map">
+      <div id="settings"></div>
+    </div>
+    <script>
+      const map = new maplibregl.Map({
+        center: [24.73, 59.42],
+        zoom: 11.5,
+        minZoom: 11,
+        maxZoom: 17,
+
+        style: 'https://tiles.openfreemap.org/styles/positron',
+        container: 'map',
+        attributionControl: { compact: false },
+        hash: true,
+        dragRotate: false,
+        pitchWithRotate: false,
+      });
+
+      map.addControl(new maplibregl.NavigationControl({
+        showCompass: false
+      }));
+
+      const blue = '#111f57';
+      const purple = '#8d268a';
+      const red = "rgba(225, 33, 24, 1)";
+      const almostBlack = "rgba(1, 1, 21, 1)";
+      const lineWidth = ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7];
+      var layerStyle = [
+        {
+          "id": "created-line",
+          "type": "line",
+          "source": "diff",
+          "minzoom": 3,
+          "filter": ["all", ["==", "action", "created"]],
+          "paint": {
+            "line-width": lineWidth,
+            "line-color": 'green'
+          }
+        },
+        {
+          "id": "deleted-line",
+          "type": "line",
+          "source": "diff",
+          "minzoom": 8,
+          "filter": ["all", ["==", "action", "deleted"]],
+          "paint": {
+            "line-width": lineWidth,
+            "line-color": 'red'
+          }
+        },
+        {
+          "id": "changed-line",
+          "type": "line",
+          "source": "diff",
+          "minzoom": 8,
+          "filter": ["all", ["==", "action", "changed"]],
+          "paint": {
+            "line-width": lineWidth,
+            "line-color": 'blue'
+          }
+        },
+      ];
+      var layerLegend = [
+          { color: 'green', text: 'added' },
+          { color: 'red', text: 'demoted' },
+          { color: "blue", text: 'updated' },
+      ];
+
+      var diffs = [];
+      var currentDiff = 0;
+      var firstSymbolId;
+      const emptyFC = {'type': 'FeatureCollection', 'features': []};
+
+      map.on('load', () => {
+        const libLayers = map.getStyle().layers;
+        // Find the index of the first symbol layer in the map style
+        for (let i = 0; i < libLayers.length; i++) {
+            if (libLayers[i].type === 'symbol') {
+                firstSymbolId = libLayers[i].id;
+                break;
+            }
+        }
+
+        map.addSource('diff', {type: 'geojson', data: emptyFC});
+        for (const layer of layerStyle) {
+          map.addLayer(layer);
+        }
+
+        fetch('./diffs/index.json', {cache: 'no-cache'})
+          .then((response) => response.json())
+          .then((json) => loadIndex(json));
+      });
+
+      function loadIndex(data) {
+        diffs = data.filter((d) => d.count > 0);
+        currentDiff = 0;
+        initPanel(diffs);
+        selectDiff(currentDiff);
+      }
+
+      function selectDiff(idx, updateSelect) {
+        map.getSource('diff').setData(emptyFC);
+        currentDiff = idx;
+
+        if (idx < 0 || idx >= diffs.length) {
+          // clear everything and return
+          return;
+        }
+
+        if (updateSelect) {
+          $('#list option[value="'+idx+'"]').prop('selected', 'selected');
+        }
+
+        const filename = diffs[idx].name;
+        fetch('./diffs/' + filename)
+          .then((response) => response.json())
+          .then((json) => {
+            let features = [];
+            for (const el of json.created) {
+              el.properties['action'] = 'created';
+              features.push(el);
+              // TODO: popup
+            }
+            for (const el of json.deleted) {
+              el.properties['action'] = 'deleted';
+              features.push(el);
+              // TODO: popup
+            }
+            for (const el of json.tags) {
+              el.properties['action'] = 'changed';
+              features.push(el);
+              // TODO: popup
+            }
+            // Ignoring the "length" section for now.
+            map.getSource('diff').setData({
+              type: 'FeatureCollection',
+              features: features
+            });
+            map.getSource('diff').getBounds()
+              .then((bounds) => { if (bounds) map.fitBounds(bounds); });
+        });
+      }
+
+      function initPanel(data) {
+        let settings = $('<div id="settings">');
+
+        const backBtn = $('<button>◀️</button>');
+        backBtn.on('click', (e) => {
+          if (currentDiff < diffs.length - 1) selectDiff(currentDiff + 1, true);
+        });
+
+        const fwdBtn = $('<button>▶️</button>');
+        fwdBtn.on('click', (e) => {
+          if (currentDiff > 0) selectDiff(currentDiff - 1, true);
+        });
+
+        const select = $('<select id="list"></select');
+        for (let i = 0; i < data.length; i++) {
+          let option = $(`<option value="${i}">${data[i].name.replace('.json', '')} (${data[i].count})</option>`)
+          if (i == currentDiff) option = option.prop('selected', 'selected');
+          select.append(option);
+        }
+        select.on('change', (e) => { selectDiff(e.target.selectedIndex); });
+
+        settings.append(backBtn);
+        settings.append(select);
+        settings.append(fwdBtn);
+        settings.append('<div id="legend"></div>');
+        $('#settings').replaceWith(settings);
+
+        drawLegend();
+      }
+
+      function drawLegend(layer) {
+        let legend = $('<div id="legend">');
+        for (const row of layerLegend) {
+          let svgStyle = 'stroke:' + row.color + ';stroke-width:' + (row.width || 2) + ';stroke-linecap:round;stroke-linejoin:round;';
+          if (row.dashed) svgStyle = svgStyle + 'stroke-dasharray: 8,6;';
+          let svg = '<svg width="50" viewBox="0 0 50 10"><path style="' + svgStyle + '" d="M 5,5 H 40"/></svg>';
+          legend.append($('<div>' + svg + row.text + '</div>'));
+        }
+        $('#legend').replaceWith(legend);
+      }
+    </script>
+  </body>
+</html>
