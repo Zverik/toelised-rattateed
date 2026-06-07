@@ -217,7 +217,7 @@
           for (let k in p) {
             if (k != '_previous' && k != 'action' && k != 'way_id' && k != 'checked') {
               let _class = p[k] == old[k] ? 'same' : Object.hasOwn(old, k) ? 'changed' : 'new';
-              const value = _class == 'changed' ? `${p[k]} → ${old[k]}` : p[k];
+              const value = _class == 'changed' ? `${old[k]} → ${p[k]}` : p[k];
               html += `<tr class="${_class}"><td>${k}</td><td>${value}</td></tr>`;
             }
           }
