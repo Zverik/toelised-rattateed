@@ -42,6 +42,16 @@
         #legend {
           margin-top: 1em;
         }
+        .popup .changed {
+          background-color: yellow;
+        }
+        .popup .new {
+          background-color: lightgreen;
+        }
+        .popup .removed {
+          background-color: red;
+          text-decoration: line-through;
+        }
     </style>
   </head>
   <body>
@@ -67,50 +77,71 @@
         showCompass: false
       }));
 
-      const blue = '#111f57';
-      const purple = '#8d268a';
-      const red = "rgba(225, 33, 24, 1)";
-      const almostBlack = "rgba(1, 1, 21, 1)";
+      const green = 'green';
+      const red = 'red';
+      const blue = 'blue';
       const lineWidth = ["interpolate", ["linear"], ["zoom"], 1, 2, 14, 2, 20, 7];
       var layerStyle = [
+        {
+          "id": "created-point",
+          "type": "circle",
+          "source": "points",
+          "maxzoom": 13,
+          "filter": ["all", ["==", "action", "created"]],
+          "paint": { "circle-radius": 5, "circle-color": green }
+        },
+        {
+          "id": "deleted-point",
+          "type": "circle",
+          "source": "points",
+          "maxzoom": 13,
+          "filter": ["all", ["==", "action", "deleted"]],
+          "paint": { "circle-radius": 5, "circle-color": red }
+        },
+        {
+          "id": "changed-point",
+          "type": "circle",
+          "source": "points",
+          "maxzoom": 13,
+          "filter": ["all", ["==", "action", "changed"]],
+          "paint": { "circle-radius": 5, "circle-color": blue }
+        },
         {
           "id": "created-line",
           "type": "line",
           "source": "diff",
-          "minzoom": 3,
+          "minzoom": 13,
           "filter": ["all", ["==", "action", "created"]],
-          "paint": {
-            "line-width": lineWidth,
-            "line-color": 'green'
-          }
+          "paint": { "line-width": lineWidth, "line-color": green }
         },
         {
           "id": "deleted-line",
           "type": "line",
           "source": "diff",
-          "minzoom": 8,
+          "minzoom": 13,
           "filter": ["all", ["==", "action", "deleted"]],
-          "paint": {
-            "line-width": lineWidth,
-            "line-color": 'red'
-          }
+          "paint": { "line-width": lineWidth, "line-color": red }
         },
         {
           "id": "changed-line",
           "type": "line",
           "source": "diff",
-          "minzoom": 8,
+          "minzoom": 13,
           "filter": ["all", ["==", "action", "changed"]],
-          "paint": {
-            "line-width": lineWidth,
-            "line-color": 'blue'
-          }
+          "paint": { "line-width": lineWidth, "line-color": blue }
+        },
+        {
+          "id": "box",
+          "type": "line",
+          "source": "diff",
+          "minzoom": 13,
+          "paint": { "line-opacity": 0, "line-width": 10 }
         },
       ];
       var layerLegend = [
-          { color: 'green', text: 'added' },
-          { color: 'red', text: 'demoted' },
-          { color: "blue", text: 'updated' },
+          { color: green, text: 'lisatud' },
+          { color: red, text: 'eemaldatud' },
+          { color: blue, text: 'täidetud' },
       ];
 
       var diffs = [];
@@ -129,6 +160,7 @@
         }
 
         map.addSource('diff', {type: 'geojson', data: emptyFC});
+        map.addSource('points', {type: 'geojson', data: emptyFC});
         for (const layer of layerStyle) {
           map.addLayer(layer);
         }
@@ -137,6 +169,94 @@
           .then((response) => response.json())
           .then((json) => loadIndex(json));
       });
+
+
+      // popups
+
+      const popup = new maplibregl.Popup({
+        closeOnClick: false
+      });
+      let popupClicked = false;
+      let currentFeature = null;
+
+      map.on('click', 'box', (e) => { showPopup(e.features[0], e.lngLat, true); });
+
+      map.on('mouseenter', 'box', () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mousemove', 'box', (e) => {
+        if (popup.isOpen() && popupClicked) return;
+        showPopup(e.features[0], e.lngLat, false);
+      });
+
+      map.on('mouseleave', 'box', () => {
+        map.getCanvas().style.cursor = '';
+        if (popup.isOpen() && !popupClicked) popup.remove();
+      });
+
+      popup.on('close', () => { currentFeature = null; });
+
+      function showPopup(feature, lnglat, isClicked) {
+        let coords = feature.geometry.coordinates.toString()
+        if (coords == currentFeature) {
+          if (isClicked) popupClicked = isClicked;
+          return;
+        }
+        currentFeature = coords;
+
+        map.getCanvas().style.cursor = 'pointer';
+        popupClicked = isClicked;
+
+        const p = feature.properties;
+        let html = '<div class="popup">';
+        const action = p.action == 'created' ? 'Lisati' : p.action == 'deleted' ? 'Eemaldati' : 'Muudeti';
+        html += `<p>${action} <a href="https://www.openstreetmap.org/way/${p.way_id}" target="_blank">Way ${p.way_id}</a>. Täägid:</p><table>`;
+        if (p.action == 'changed') {
+          const old = JSON.parse(p['_previous']);
+          for (let k in p) {
+            if (k != '_previous' && k != 'action' && k != 'way_id' && k != 'checked') {
+              let _class = p[k] == old[k] ? 'same' : Object.hasOwn(old, k) ? 'changed' : 'new';
+              const value = _class == 'changed' ? `${p[k]} → ${old[k]}` : p[k];
+              html += `<tr class="${_class}"><td>${k}</td><td>${value}</td></tr>`;
+            }
+          }
+          for (let k in old) {
+            if (!Object.hasOwn(p, k)) {
+              html += `<tr class="removed"><td>${k}</td><td>${old[k]}</td></tr>`;
+            }
+          }
+        } else {
+          for (let k in p) {
+            if (k != 'action' && k != 'way_id' && k != 'checked') {
+              html += `<tr class="same"><td>${k}</td><td>${p[k]}</td></tr>`;
+            }
+          }
+        }
+        html += '</table></div>';
+
+        popup.setLngLat(lnglat).setHTML(html).addTo(map);
+      }
+
+
+      // functions
+
+      function extractCoords(coords) {
+        if (!coords || coords.length == 0) return null;
+        if (typeof coords[0] == 'number') {
+          return [coords];
+        }
+        return coords.flatMap(c => extractCoords(c));
+      }
+
+      function findCenter(feature) {
+        const coords = extractCoords(feature.geometry.coordinates);
+        const bounds = new maplibregl.LngLatBounds();
+        for (const coord of coords) {
+          bounds.extend(coord);
+        }
+        return bounds.getCenter().toArray();
+      }
 
       function loadIndex(data) {
         diffs = data.filter((d) => d.count > 0);
@@ -162,26 +282,44 @@
         fetch('./diffs/' + filename)
           .then((response) => response.json())
           .then((json) => {
+            let points = [];
             let features = [];
             for (const el of json.created) {
               el.properties['action'] = 'created';
               features.push(el);
-              // TODO: popup
+              points.push({
+                type: 'Feature',
+                geometry: {type: 'Point', coordinates: findCenter(el)},
+                properties: {action: el.properties.action}
+              });
             }
             for (const el of json.deleted) {
               el.properties['action'] = 'deleted';
               features.push(el);
-              // TODO: popup
+              points.push({
+                type: 'Feature',
+                geometry: {type: 'Point', coordinates: findCenter(el)},
+                properties: {action: el.properties.action}
+              });
             }
             for (const el of json.tags) {
               el.properties['action'] = 'changed';
+              el.properties['_previous'] = JSON.stringify(el.previous);
               features.push(el);
-              // TODO: popup
+              points.push({
+                type: 'Feature',
+                geometry: {type: 'Point', coordinates: findCenter(el)},
+                properties: {action: el.properties.action}
+              });
             }
             // Ignoring the "length" section for now.
             map.getSource('diff').setData({
               type: 'FeatureCollection',
               features: features
+            });
+            map.getSource('points').setData({
+              type: 'FeatureCollection',
+              features: points
             });
             map.getSource('diff').getBounds()
               .then((bounds) => { if (bounds) map.fitBounds(bounds); });
