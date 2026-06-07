@@ -131,7 +131,7 @@ def set_grade(tags: dict[str, str]) -> None:
 
 
 def find_age(tags: dict[str, str]) -> str | None:
-    check_date = tags.get('cycleway:check_date') or tags.get('check_date')
+    check_date = tags.get('check_date:cycleway') or tags.get('cycleway:check_date') or tags.get('check_date')
     if not check_date:
         return None
     parts = re.match(r'^\s*(20\d\d)-(\d\d?)(?:-(\d\d))?', check_date)
